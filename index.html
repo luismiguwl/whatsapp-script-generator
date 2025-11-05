@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Script Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar styling for a cleaner look */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #a0aec0; /* Tailwind gray-400 */
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f7fafc; /* Tailwind gray-50 */
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#4CAF50',
+                        'primary-dark': '#388E3C',
+                        'secondary': '#10b981', /* Emerald */
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+
+        const TEMPLATE = `setTimeout(() => {
+const list = [#lista];
+list.forEach((item, index) => {
+setTimeout(() => {
+// Insere o texto
+document.execCommand('insertText', false, item);
+console.log(index + 1, 'de', list.length, item);
+// Simula a tecla Enter
+setTimeout(() => {
+    document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        keyCode: 13,
+        which: 13,
+        bubbles: true,
+        isTrusted: true
+        })); // Envia o evento
+}, 200);
+}, 500 * index); // Delay entre as inserções
+});
+}, 1000); // Delay inicial`;
+
+
+        /**
+         * Generates the final JavaScript code based on the textarea input.
+         */
+        function generateCode() {
+            const messageInput = document.getElementById('messageInput');
+            const outputTextarea = document.getElementById('outputTextarea');
+            const copyButton = document.getElementById('copyButton');
+
+            // 1. Get input, split by line, trim, and filter out empty lines.
+            const rawMessages = messageInput.value
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (rawMessages.length === 0) {
+                outputTextarea.value = '// Please enter messages above to generate the script.';
+                copyButton.classList.add('opacity-50', 'cursor-not-allowed');
+                return;
+            }
+
+            // 2. Wrap each message safely in double quotes for JavaScript using JSON.stringify.
+            const quotedMessages = rawMessages.map(line => JSON.stringify(line));
+
+            // 3. Join them with a comma and newline to match the desired array format.
+            const formattedList = quotedMessages.join(',\n');
+
+            // 4. Inject the list into the template, adding indentation.
+            const indentedList = formattedList.split('\n').map(line => '    ' + line).join('\n');
+
+            // Create the final content with surrounding brackets and newline padding.
+            const finalCode = TEMPLATE.replace('#lista', '\n' + indentedList + '\n');
+
+            // 5. Display the result.
+            outputTextarea.value = finalCode;
+            copyButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            copyButton.textContent = 'Copy Code';
+        }
+
+        /**
+         * Copies the generated script to the clipboard.
+         */
+        function copyCode() {
+            const outputTextarea = document.getElementById('outputTextarea');
+            const copyButton = document.getElementById('copyButton');
+
+            if (outputTextarea.value.length > 0 && outputTextarea.value.includes('list = [')) {
+                outputTextarea.select();
+                document.execCommand('copy');
+
+                copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyButton.textContent = 'Copy Code';
+                }, 2000);
+            } else {
+                 // Show a custom message box instead of alert()
+                 showMessageBox('Error', 'No generated code to copy.', 'bg-red-500');
+            }
+        }
+
+        /**
+         * Displays a temporary message box.
+         * @param {string} title
+         * @param {string} message
+         * @param {string} colorClass
+         */
+        function showMessageBox(title, message, colorClass) {
+            const messageBox = document.getElementById('messageBox');
+            const boxTitle = document.getElementById('boxTitle');
+            const boxMessage = document.getElementById('boxMessage');
+
+            boxTitle.textContent = title;
+            boxMessage.textContent = message;
+
+            messageBox.className = `fixed top-5 right-5 z-50 p-4 rounded-lg shadow-xl transition-transform duration-300 transform translate-x-full ${colorClass}`;
+            messageBox.classList.remove('translate-x-full');
+            messageBox.classList.add('translate-x-0');
+
+            setTimeout(() => {
+                messageBox.classList.remove('translate-x-0');
+                messageBox.classList.add('translate-x-full');
+            }, 3000);
+        }
+
+        // Generate code on load (if textarea is pre-filled, though it isn't here)
+        window.onload = generateCode;
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans p-4">
+
+    <!-- Message Box for copy status/errors -->
+    <div id="messageBox" class="fixed top-5 right-5 z-50 p-4 rounded-lg shadow-xl transition-transform duration-300 transform translate-x-full bg-green-500 text-white" role="alert">
+        <strong id="boxTitle" class="font-bold block mb-1">Success!</strong>
+        <span id="boxMessage" class="block">Code copied to clipboard.</span>
+    </div>
+
+    <div class="w-full max-w-4xl bg-white rounded-xl shadow-2xl p-6 md:p-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">WhatsApp Script Generator</h1>
+        <p class="text-center text-gray-600 mb-8">Type your messages below, one per line. Click "Generate Script" to create the final JavaScript payload.</p>
+
+        <!-- Input Area -->
+        <div class="mb-6">
+            <label for="messageInput" class="block text-lg font-medium text-gray-700 mb-2">Messages (One per line):</label>
+            <textarea
+                id="messageInput"
+                rows="8"
+                class="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-primary focus:border-primary transition duration-150 custom-scrollbar"
+                placeholder="Enter message 1 here...
+Enter message 2 here...
+Enter message 3 here..."
+                oninput="generateCode()"
+            ></textarea>
+        </div>
+
+        <!-- Action Button -->
+        <div class="flex justify-center mb-8">
+            <button
+                onclick="generateCode()"
+                class="w-full md:w-auto px-8 py-3 bg-primary text-white font-semibold rounded-lg shadow-md hover:bg-primary-dark transition duration-200 transform hover:scale-105 active:scale-100 focus:outline-none focus:ring-4 focus:ring-primary focus:ring-opacity-50"
+            >
+                Generate Script
+            </button>
+        </div>
+
+        <!-- Output Area -->
+        <div>
+            <div class="flex justify-between items-center mb-2">
+                <label for="outputTextarea" class="text-lg font-medium text-gray-700">Generated JavaScript Query:</label>
+                <button
+                    id="copyButton"
+                    onclick="copyCode()"
+                    class="px-4 py-2 text-sm bg-secondary text-white rounded-lg shadow-md hover:bg-emerald-600 transition duration-150 opacity-50 cursor-not-allowed"
+                    title="Copy to Clipboard"
+                >
+                    Copy Code
+                </button>
+            </div>
+            <textarea
+                id="outputTextarea"
+                rows="15"
+                readonly
+                class="w-full p-4 bg-gray-900 text-green-400 text-sm font-mono rounded-lg border border-gray-700 custom-scrollbar resize-none"
+            >// Click "Generate Script" or type messages above to see the result.
+            </textarea>
+        </div>
+
+        <div class="mt-6 text-xs text-gray-500 text-center">
+             Note: This script uses `document.execCommand('insertText')` and key events, and is intended to be executed in the browser's console on the target messaging platform.
+        </div>
+    </div>
+</body>
+</html>
